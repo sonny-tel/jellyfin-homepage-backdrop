@@ -1,6 +1,6 @@
 # Homepage Backdrop
 
-A Jellyfin plugin that cycles backdrop images on the homepage,  since I could not figure it out.
+A Jellyfin plugin that cycles backdrop images on the homepage, since I could not figure it out.
 
 ## Features
 
