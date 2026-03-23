@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "1.0.1.6",
+        "changelog": "See release notes",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/sonny-tel/jellyfin-backdrop-extended/releases/download/v1.0.1.6/backdrop-extended_1.0.1.6.zip",
+        "checksum": "9485c6c33a78ebcbccca90c6a27dc5fb",
+        "timestamp": "2026-03-23T16:11:10Z"
+      },
+      {
         "version": "1.0.1.5",
         "changelog": "See release notes",
         "targetAbi": "10.11.0.0",
