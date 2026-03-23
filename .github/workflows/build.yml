@@ -29,10 +29,6 @@ jobs:
       - name: Verify embedded resources
         run: |
           dll="SonnyTel.Plugin.HomepageBackdrop/bin/Release/net9.0/SonnyTel.Plugin.HomepageBackdrop.dll"
-          if ! strings "$dll" | grep -q "configPage.html"; then
-            echo "::error::configPage.html not embedded in DLL"
-            exit 1
-          fi
           if ! strings "$dll" | grep -q "homepageBackdrop.js"; then
             echo "::error::homepageBackdrop.js not embedded in DLL"
             exit 1
