@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "1.0.0.5",
+        "changelog": "See release notes",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/sonny-tel/jellyfin-homepage-backdrop/releases/download/v1.0.0.5/homepage-backdrop_1.0.0.5.zip",
+        "checksum": "4b2bfebb7bb87471d1c1035c3f7a63b1",
+        "timestamp": "2026-03-23T12:48:52Z"
+      },
+      {
         "version": "1.0.0.4",
         "changelog": "See release notes",
         "targetAbi": "10.11.0.0",
