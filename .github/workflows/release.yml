@@ -44,7 +44,7 @@ jobs:
           mv meta_tmp.json SonnyTel.Plugin.HomepageBackdrop/meta.json
 
       - name: Build
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release /p:Version=${{ steps.version.outputs.version }} /p:AssemblyVersion=${{ steps.version.outputs.version }} /p:FileVersion=${{ steps.version.outputs.version }}
 
       - name: Package plugin zip
         id: package

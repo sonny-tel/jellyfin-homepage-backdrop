@@ -3,7 +3,6 @@
 (function () {
     'use strict';
 
-    var LOG_PREFIX = '[HomepageBackdrop]';
     var ROTATION_INTERVAL_MS = 10000;
     var FETCH_LIMIT = 20;
     var POLL_INTERVAL_MS = 2000;
@@ -14,8 +13,6 @@
     var isActive = false;
     var isActivating = false;
     var currentLoadingImage = null;
-
-    console.log(LOG_PREFIX, 'Script loaded');
 
     // --- Helpers ---
 
@@ -83,7 +80,6 @@
         if (!isActive) {
             return;
         }
-        console.log(LOG_PREFIX, 'Clearing backdrop rotation');
         stopRotation();
         currentImages = [];
         currentIndex = -1;
@@ -98,7 +94,6 @@
     function setBackdropImage(url) {
         var container = getBackdropContainer();
         if (!container) {
-            console.warn(LOG_PREFIX, 'No .backdropContainer found');
             return;
         }
 
@@ -164,7 +159,6 @@
         currentImages = images;
         currentIndex = -1;
         isActive = true;
-        console.log(LOG_PREFIX, 'Starting rotation with', images.length, 'images');
         onRotationTick();
         if (images.length > 1) {
             rotationTimer = setInterval(onRotationTick, ROTATION_INTERVAL_MS);
@@ -243,20 +237,16 @@
 
         if (!checkBackdropsEnabled()) {
             isActivating = false;
-            console.log(LOG_PREFIX, 'Backdrops disabled in user settings');
             return;
         }
 
-        console.log(LOG_PREFIX, 'Fetching backdrop items...');
         fetchBackdropItems(apiClient).then(function (items) {
-            console.log(LOG_PREFIX, 'Got', items.length, 'items');
             if (items.length === 0) {
                 isActivating = false;
                 return;
             }
 
             var urls = buildImageUrls(apiClient, items);
-            console.log(LOG_PREFIX, 'Built', urls.length, 'image URLs');
             if (urls.length === 0) {
                 isActivating = false;
                 return;
@@ -276,7 +266,7 @@
             }, 500);
         }).catch(function (err) {
             isActivating = false;
-            console.error(LOG_PREFIX, 'Error:', err);
+            console.error('[HomepageBackdrop]', err);
         });
     }
 
@@ -295,13 +285,10 @@
     setInterval(pollCheck, POLL_INTERVAL_MS);
 
     window.addEventListener('hashchange', function () {
-        console.log(LOG_PREFIX, 'hashchange:', window.location.hash);
         setTimeout(pollCheck, 300);
     });
 
     document.addEventListener('viewshow', function () {
         setTimeout(pollCheck, 300);
     });
-
-    console.log(LOG_PREFIX, 'Hooks registered, polling every', POLL_INTERVAL_MS, 'ms');
 })();
