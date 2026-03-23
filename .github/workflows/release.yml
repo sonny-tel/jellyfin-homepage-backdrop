@@ -53,11 +53,9 @@ jobs:
           ARTIFACT_NAME="homepage-backdrop_${VERSION}.zip"
           OUT_DIR="SonnyTel.Plugin.HomepageBackdrop/bin/Release/net9.0"
 
-          cd "$OUT_DIR"
-          zip -j "../../../${ARTIFACT_NAME}" \
-            SonnyTel.Plugin.HomepageBackdrop.dll \
-            meta.json
-          cd -
+          zip -j "${ARTIFACT_NAME}" \
+            "${OUT_DIR}/SonnyTel.Plugin.HomepageBackdrop.dll" \
+            "${OUT_DIR}/meta.json"
 
           echo "artifact=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
           echo "Packaged: ${ARTIFACT_NAME}"
