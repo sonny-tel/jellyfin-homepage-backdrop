@@ -17,6 +17,8 @@
     var activeParentId = null;
     var lastBackdropUrl = null;
     var pluginContainer = null;
+    var pendingNativeObserver = null;
+    var pendingNativeTimeout = null;
 
     // --- Helpers ---
 
@@ -121,6 +123,58 @@
 
     // --- Backdrop image management ---
 
+    function cancelNativeWait() {
+        if (pendingNativeObserver) {
+            pendingNativeObserver.disconnect();
+            pendingNativeObserver = null;
+        }
+        if (pendingNativeTimeout) {
+            clearTimeout(pendingNativeTimeout);
+            pendingNativeTimeout = null;
+        }
+    }
+
+    function clearPluginContainer() {
+        lastBackdropUrl = null;
+        if (pluginContainer) {
+            pluginContainer.innerHTML = '';
+        }
+    }
+
+    // When leaving a managed page for a page with native backdrops (e.g. Home→Shows),
+    // keep our image visible as a bridge until the native system renders its own
+    // backdrop. This prevents the gray flash during the handoff.
+    function waitForNativeBackdrop() {
+        cancelNativeWait();
+
+        var nativeContainer = document.querySelector('.backdropContainer');
+        if (!nativeContainer || !pluginContainer || !lastBackdropUrl) {
+            clearPluginContainer();
+            return;
+        }
+
+        // If native already has an image showing, clear immediately
+        if (nativeContainer.querySelector('.displayingBackdropImage')) {
+            clearPluginContainer();
+            return;
+        }
+
+        // Watch for native to add a backdrop image
+        pendingNativeObserver = new MutationObserver(function () {
+            if (nativeContainer.querySelector('.displayingBackdropImage')) {
+                cancelNativeWait();
+                clearPluginContainer();
+            }
+        });
+        pendingNativeObserver.observe(nativeContainer, { childList: true, subtree: true });
+
+        // Safety: if native never loads (page has no backdrop at all), clear after 2s
+        pendingNativeTimeout = setTimeout(function () {
+            cancelNativeWait();
+            clearPluginContainer();
+        }, 2000);
+    }
+
     function deactivateBackdrop() {
         ++activationGeneration;
         stopRotation();
@@ -128,14 +182,12 @@
         currentIndex = -1;
         isActive = false;
         activeParentId = null;
-        lastBackdropUrl = null;
         if (currentLoadingImage) {
             currentLoadingImage.onload = null;
             currentLoadingImage = null;
         }
-        if (pluginContainer) {
-            pluginContainer.innerHTML = '';
-        }
+        // Keep the visible image as a bridge; wait for native to take over
+        waitForNativeBackdrop();
     }
 
     function setBackdropImage(url) {
@@ -269,6 +321,9 @@
     // --- Main logic ---
 
     function activateBackdrop(parentId) {
+        // Cancel any pending bridge-to-native transition
+        cancelNativeWait();
+
         var apiClient = window.ApiClient;
         if (!apiClient || !apiClient.getCurrentUserId()) {
             return;
