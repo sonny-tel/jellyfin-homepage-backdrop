@@ -3,49 +3,35 @@
 (function () {
     'use strict';
 
+    var LOG_PREFIX = '[HomepageBackdrop]';
     var ROTATION_INTERVAL_MS = 10000;
     var FETCH_LIMIT = 20;
-    var HOMEPAGE_DELAY_MS = 500;
+    var POLL_INTERVAL_MS = 2000;
 
     var rotationTimer = null;
+    var pollTimer = null;
     var currentImages = [];
     var currentIndex = -1;
     var isActive = false;
 
+    console.log(LOG_PREFIX, 'Script loaded');
+
     // --- Helpers ---
 
-    function getBackdropContainer() {
-        return document.querySelector('.backdropContainer');
-    }
-
-    function getBackgroundContainer() {
-        return document.querySelector('.backgroundContainer');
-    }
-
     function isHomePage() {
-        var path = window.location.pathname;
         var hash = window.location.hash;
-
-        // Legacy hash routing: #/home, #/home?tab=0, #/home?tab=1
-        if (hash === '#/home' || hash.indexOf('#/home?') === 0 || hash === '#!/home' || hash.indexOf('#!/home?') === 0) {
+        // Jellyfin 10.11.x uses hash router: #/home, #/home?tab=0, etc.
+        if (hash === '#/home' || hash.indexOf('#/home?') === 0) {
             return true;
         }
-
-        // Path routing: /home, /web/index.html (with hash #/home)
-        if (path === '/home' || path === '/web/home' || path.endsWith('/home')) {
+        // Legacy formats (redirected by Jellyfin but check anyway)
+        if (hash === '#!/home' || hash.indexOf('#!/home?') === 0) {
             return true;
         }
-
-        // Root with no hash (can be home)
-        if ((path === '/' || path === '/web/' || path === '/web/index.html') && (!hash || hash === '#' || hash === '#/')) {
-            return true;
-        }
-
         return false;
     }
 
     function isVideoPlaying() {
-        // Check for active video elements (native playback)
         var videos = document.querySelectorAll('video');
         for (var i = 0; i < videos.length; i++) {
             if (!videos[i].paused) {
@@ -58,6 +44,10 @@
     // --- Backdrop management ---
 
     function clearPluginBackdrop() {
+        if (!isActive) {
+            return;
+        }
+        console.log(LOG_PREFIX, 'Clearing backdrop rotation');
         stopRotation();
         currentImages = [];
         currentIndex = -1;
@@ -65,27 +55,24 @@
     }
 
     function setBackdropImage(url) {
-        var container = getBackdropContainer();
+        var container = document.querySelector('.backdropContainer');
         if (!container) {
+            console.warn(LOG_PREFIX, 'No .backdropContainer found');
             return;
         }
 
         var existing = container.querySelector('.displayingBackdropImage');
 
-        var backdropImage = document.createElement('div');
-        backdropImage.classList.add('backdropImage');
-        backdropImage.classList.add('displayingBackdropImage');
-        backdropImage.style.backgroundImage = "url('" + url + "')";
-        backdropImage.setAttribute('data-url', url);
-        backdropImage.classList.add('backdropImageFadeIn');
-        container.appendChild(backdropImage);
+        var img = document.createElement('div');
+        img.classList.add('backdropImage', 'displayingBackdropImage', 'backdropImageFadeIn');
+        img.style.backgroundImage = "url('" + url + "')";
+        container.appendChild(img);
 
-        var bgContainer = getBackgroundContainer();
+        var bgContainer = document.querySelector('.backgroundContainer');
         if (bgContainer) {
             bgContainer.classList.add('withBackdrop');
         }
 
-        // Remove the old image after the animation completes
         if (existing) {
             setTimeout(function () {
                 if (existing.parentNode) {
@@ -96,32 +83,20 @@
     }
 
     function onRotationTick() {
-        if (isVideoPlaying()) {
+        if (isVideoPlaying() || currentImages.length === 0) {
             return;
         }
-
-        if (currentImages.length === 0) {
-            return;
-        }
-
-        currentIndex++;
-        if (currentIndex >= currentImages.length) {
-            currentIndex = 0;
-        }
-
+        currentIndex = (currentIndex + 1) % currentImages.length;
         setBackdropImage(currentImages[currentIndex]);
     }
 
     function startRotation(images) {
         stopRotation();
-
         currentImages = images;
         currentIndex = -1;
         isActive = true;
-
-        // Show first image immediately
+        console.log(LOG_PREFIX, 'Starting rotation with', images.length, 'images');
         onRotationTick();
-
         if (images.length > 1) {
             rotationTimer = setInterval(onRotationTick, ROTATION_INTERVAL_MS);
         }
@@ -135,11 +110,6 @@
     }
 
     // --- API interaction ---
-
-    function getApiClient() {
-        // window.ApiClient is set by the Jellyfin web client once authenticated
-        return window.ApiClient;
-    }
 
     function checkBackdropsEnabled(apiClient) {
         var userId = apiClient.getCurrentUserId();
@@ -159,9 +129,7 @@
             Limit: FETCH_LIMIT,
             Recursive: true,
             ImageTypes: 'Backdrop',
-            EnableTotalRecordCount: false,
-            MaxOfficialRating: 'PG-13'
-            // No IncludeItemTypes — all media sources
+            EnableTotalRecordCount: false
         }).then(function (result) {
             return result.Items || [];
         });
@@ -173,13 +141,12 @@
             var item = items[i];
             if (item.BackdropImageTags && item.BackdropImageTags.length > 0) {
                 var tagIndex = Math.floor(Math.random() * item.BackdropImageTags.length);
-                var url = apiClient.getScaledImageUrl(item.Id, {
+                urls.push(apiClient.getScaledImageUrl(item.Id, {
                     type: 'Backdrop',
                     tag: item.BackdropImageTags[tagIndex],
                     maxWidth: Math.round(screen.availWidth),
                     index: tagIndex
-                });
-                urls.push(url);
+                }));
             }
         }
         return urls;
@@ -188,83 +155,81 @@
     // --- Main logic ---
 
     function activateHomepageBackdrop() {
-        var apiClient = getApiClient();
-        if (!apiClient) {
+        var apiClient = window.ApiClient;
+        if (!apiClient || !apiClient.getCurrentUserId()) {
+            console.log(LOG_PREFIX, 'ApiClient not ready yet');
             return;
         }
 
+        if (isActive) {
+            return;
+        }
+
+        console.log(LOG_PREFIX, 'Checking if backdrops enabled...');
         checkBackdropsEnabled(apiClient).then(function (enabled) {
             if (!enabled) {
+                console.log(LOG_PREFIX, 'Backdrops disabled in user settings');
                 return;
             }
 
-            fetchBackdropItems(apiClient).then(function (items) {
+            console.log(LOG_PREFIX, 'Fetching backdrop items...');
+            return fetchBackdropItems(apiClient).then(function (items) {
+                console.log(LOG_PREFIX, 'Got', items.length, 'items');
                 if (items.length === 0) {
                     return;
                 }
 
                 var urls = buildImageUrls(apiClient, items);
+                console.log(LOG_PREFIX, 'Built', urls.length, 'image URLs');
                 if (urls.length === 0) {
                     return;
                 }
 
-                // Clear whatever the native code set, then start our rotation
-                var container = getBackdropContainer();
-                if (container) {
-                    container.innerHTML = '';
-                }
-
-                startRotation(urls);
+                // Wait a moment for native backdrop to finish, then replace it
+                setTimeout(function () {
+                    if (!isHomePage()) {
+                        return;
+                    }
+                    var container = document.querySelector('.backdropContainer');
+                    if (container) {
+                        container.innerHTML = '';
+                    }
+                    startRotation(urls);
+                }, 500);
             });
+        }).catch(function (err) {
+            console.error(LOG_PREFIX, 'Error:', err);
         });
     }
 
-    function onPageChange() {
+    // --- Polling approach (robust) ---
+
+    function pollCheck() {
         if (isHomePage()) {
             if (!isActive) {
-                // Delay to run after native clearBackdrop/showBackdrop calls
-                setTimeout(activateHomepageBackdrop, HOMEPAGE_DELAY_MS);
+                activateHomepageBackdrop();
             }
         } else {
-            if (isActive) {
-                clearPluginBackdrop();
-            }
+            clearPluginBackdrop();
         }
     }
 
-    // --- Navigation hooks ---
+    // Start polling — handles initial load, SPA navigation, and any edge cases
+    pollTimer = setInterval(pollCheck, POLL_INTERVAL_MS);
 
-    // Listen for hash changes (legacy routing)
-    window.addEventListener('hashchange', onPageChange);
-
-    // Listen for popstate (history-based routing)
-    window.addEventListener('popstate', onPageChange);
-
-    // Patch pushState/replaceState to detect SPA navigation
-    var originalPushState = history.pushState;
-    var originalReplaceState = history.replaceState;
-
-    history.pushState = function () {
-        originalPushState.apply(this, arguments);
-        setTimeout(onPageChange, 0);
-    };
-
-    history.replaceState = function () {
-        originalReplaceState.apply(this, arguments);
-        setTimeout(onPageChange, 0);
-    };
-
-    // Also handle the viewshow event that Jellyfin fires on page transitions
-    document.addEventListener('viewshow', function () {
-        setTimeout(onPageChange, 100);
+    // Also respond to navigation events for faster activation
+    window.addEventListener('hashchange', function () {
+        console.log(LOG_PREFIX, 'hashchange:', window.location.hash);
+        setTimeout(pollCheck, 300);
     });
 
-    // Initial check on script load
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(onPageChange, 1000);
-    } else {
-        document.addEventListener('DOMContentLoaded', function () {
-            setTimeout(onPageChange, 1000);
-        });
-    }
+    document.addEventListener('viewshow', function () {
+        setTimeout(pollCheck, 300);
+    });
+
+    document.addEventListener('pageshow', function () {
+        setTimeout(pollCheck, 300);
+    });
+
+    console.log(LOG_PREFIX, 'Hooks registered, polling every', POLL_INTERVAL_MS, 'ms');
 })();
