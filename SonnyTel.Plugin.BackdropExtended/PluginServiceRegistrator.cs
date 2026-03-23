@@ -2,7 +2,7 @@ using MediaBrowser.Controller;
 using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace SonnyTel.Plugin.HomepageBackdrop;
+namespace SonnyTel.Plugin.BackdropExtended;
 
 /// <summary>
 /// Registers plugin services with the dependency injection container.

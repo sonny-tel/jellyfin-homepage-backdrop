@@ -28,9 +28,9 @@ jobs:
 
       - name: Verify embedded resources
         run: |
-          dll="SonnyTel.Plugin.HomepageBackdrop/bin/Release/net9.0/SonnyTel.Plugin.HomepageBackdrop.dll"
-          if ! strings "$dll" | grep -q "homepageBackdrop.js"; then
-            echo "::error::homepageBackdrop.js not embedded in DLL"
+          dll="SonnyTel.Plugin.BackdropExtended/bin/Release/net9.0/SonnyTel.Plugin.BackdropExtended.dll"
+          if ! strings "$dll" | grep -q "backdropExtended.js"; then
+            echo "::error::backdropExtended.js not embedded in DLL"
             exit 1
           fi
           echo "All embedded resources verified."

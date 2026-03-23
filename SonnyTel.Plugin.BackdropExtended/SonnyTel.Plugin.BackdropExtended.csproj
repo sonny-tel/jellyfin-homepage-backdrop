@@ -2,8 +2,8 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <RootNamespace>SonnyTel.Plugin.HomepageBackdrop</RootNamespace>
-    <AssemblyName>SonnyTel.Plugin.HomepageBackdrop</AssemblyName>
+    <RootNamespace>SonnyTel.Plugin.BackdropExtended</RootNamespace>
+    <AssemblyName>SonnyTel.Plugin.BackdropExtended</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Nullable>enable</Nullable>
@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="Web\homepageBackdrop.js" />
-    <EmbeddedResource Include="Web\homepageBackdrop.js" />
+    <None Remove="Web\backdropExtended.js" />
+    <EmbeddedResource Include="Web\backdropExtended.js" />
   </ItemGroup>
 
   <ItemGroup>

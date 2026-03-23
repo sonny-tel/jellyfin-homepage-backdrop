@@ -3,7 +3,7 @@ using MediaBrowser.Common.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace SonnyTel.Plugin.HomepageBackdrop;
+namespace SonnyTel.Plugin.BackdropExtended;
 
 /// <summary>
 /// Injects the client-side script tag into the Jellyfin web client's index.html on startup
@@ -11,7 +11,7 @@ namespace SonnyTel.Plugin.HomepageBackdrop;
 /// </summary>
 public sealed class ScriptInjector : IHostedService
 {
-    private const string ScriptTag = "<script src=\"/HomepageBackdrop/ClientScript\"></script>";
+    private const string ScriptTag = "<script src=\"/BackdropExtended/ClientScript\"></script>";
     private readonly IApplicationPaths _applicationPaths;
     private readonly ILogger<ScriptInjector> _logger;
 
@@ -60,7 +60,7 @@ public sealed class ScriptInjector : IHostedService
 
             if (html.Contains(ScriptTag, StringComparison.Ordinal))
             {
-                _logger.LogDebug("Homepage Backdrop script tag already present in index.html");
+                _logger.LogDebug("Backdrop Extended script tag already present in index.html");
                 return;
             }
 
@@ -75,11 +75,11 @@ public sealed class ScriptInjector : IHostedService
             html = html.Insert(insertIndex, $"    {ScriptTag}\n");
             File.WriteAllText(indexPath, html, Encoding.UTF8);
 
-            _logger.LogInformation("Homepage Backdrop script injected into index.html");
+            _logger.LogInformation("Backdrop Extended script injected into index.html");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to inject Homepage Backdrop script into index.html");
+            _logger.LogError(ex, "Failed to inject Backdrop Extended script into index.html");
         }
     }
 
@@ -103,11 +103,11 @@ public sealed class ScriptInjector : IHostedService
             html = html.Replace($"    {ScriptTag}\n", string.Empty, StringComparison.Ordinal);
             File.WriteAllText(indexPath, html, Encoding.UTF8);
 
-            _logger.LogInformation("Homepage Backdrop script removed from index.html");
+            _logger.LogInformation("Backdrop Extended script removed from index.html");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to remove Homepage Backdrop script from index.html");
+            _logger.LogError(ex, "Failed to remove Backdrop Extended script from index.html");
         }
     }
 }

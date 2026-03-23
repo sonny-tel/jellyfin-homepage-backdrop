@@ -1,16 +1,15 @@
-name: Homepage Backdrop
+name: Backdrop Extended
 guid: 3c8f4c97-2bc5-4e68-a60c-4e3b4a24c4b0
 version: 1.0.0.0
 targetAbi: 10.11.0.0
 framework: net9.0
 owner: sonny-tel
-overview: Cycles backdrop images on the homepage from all media sources.
+overview: Extended backdrop features for Jellyfin.
 description: >
-  Cycles backdrop images on the Jellyfin homepage using items from all media
-  libraries, not just movies, series, and books. Respects the standard Backdrops
-  user display setting.
+  Extends Jellyfin's backdrop functionality with additional features, including
+  cycling backdrop images on the homepage using all media sources.
 category: General
 artifacts:
-  - SonnyTel.Plugin.HomepageBackdrop.dll
+  - SonnyTel.Plugin.BackdropExtended.dll
 changelog: |
   1.0.0.0 - Initial release

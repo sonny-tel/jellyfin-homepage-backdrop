@@ -1,4 +1,4 @@
-// Homepage Backdrop — cycles backdrops on the homepage from all media sources.
+// Backdrop Extended — cycles backdrops on the homepage and non-standard library pages.
 // Only active when the user's "Backdrops" display setting is enabled.
 (function () {
     'use strict';
@@ -13,6 +13,7 @@
     var isActive = false;
     var isActivating = false;
     var currentLoadingImage = null;
+    var activeParentId = null; // tracks which library we're showing backdrops for
 
     // --- Helpers ---
 
@@ -25,6 +26,23 @@
             return true;
         }
         return false;
+    }
+
+    // Detect non-standard collection pages that lack native backdrop support.
+    // These use #/list?parentId=... (generic list view for mixed/boxset/unknown libraries).
+    function getListParentId() {
+        var hash = window.location.hash;
+        // Normalize hashbang
+        var path = hash.replace('#!', '#');
+        if (path.indexOf('#/list?') !== 0 && path.indexOf('#/list&') !== 0) {
+            return null;
+        }
+        var match = path.match(/[?&]parentId=([^&]+)/);
+        return match ? match[1] : null;
+    }
+
+    function isBackdropPage() {
+        return isHomePage() || getListParentId() !== null;
     }
 
     function isVideoPlaying() {
@@ -187,18 +205,23 @@
 
     // --- API interaction ---
 
-    // Matches native autoBackdrops.js: IsFavoriteOrLiked,Random sort, PG-13 max,
-    // no IncludeItemTypes filter (all media sources).
-    function fetchBackdropItems(apiClient) {
+    // Matches native autoBackdrops.js: IsFavoriteOrLiked,Random sort, PG-13 max.
+    // parentId is optional — when set, scopes to a specific library.
+    function fetchBackdropItems(apiClient, parentId) {
         var userId = apiClient.getCurrentUserId();
-        return apiClient.getItems(userId, {
+        var opts = {
             SortBy: 'IsFavoriteOrLiked,Random',
             Limit: FETCH_LIMIT,
             Recursive: true,
             ImageTypes: 'Backdrop',
-            EnableTotalRecordCount: false,
-            MaxOfficialRating: 'PG-13'
-        }).then(function (result) {
+            EnableTotalRecordCount: false
+        };
+        if (parentId) {
+            opts.ParentId = parentId;
+        } else {
+            opts.MaxOfficialRating = 'PG-13';
+        }
+        return apiClient.getItems(userId, opts).then(function (result) {
             return result.Items || [];
         });
     }
@@ -223,13 +246,18 @@
 
     // --- Main logic ---
 
-    function activateHomepageBackdrop() {
+    function activateBackdrop(parentId) {
         var apiClient = window.ApiClient;
         if (!apiClient || !apiClient.getCurrentUserId()) {
             return;
         }
 
-        if (isActive || isActivating) {
+        if (isActivating) {
+            return;
+        }
+
+        // If already active for the same context, skip
+        if (isActive && activeParentId === (parentId || null)) {
             return;
         }
 
@@ -240,7 +268,7 @@
             return;
         }
 
-        fetchBackdropItems(apiClient).then(function (items) {
+        fetchBackdropItems(apiClient, parentId).then(function (items) {
             if (items.length === 0) {
                 isActivating = false;
                 return;
@@ -255,27 +283,37 @@
             // Delay to let native backdrop code finish, then replace
             setTimeout(function () {
                 isActivating = false;
-                if (!isHomePage()) {
+                if (!isBackdropPage()) {
                     return;
                 }
                 var container = getBackdropContainer();
                 if (container) {
                     container.innerHTML = '';
                 }
+                activeParentId = parentId || null;
                 startRotation(urls);
             }, 500);
         }).catch(function (err) {
             isActivating = false;
-            console.error('[HomepageBackdrop]', err);
+            console.error('[BackdropExtended]', err);
         });
     }
 
     // --- Navigation detection ---
 
     function pollCheck() {
+        var listParentId = getListParentId();
         if (isHomePage()) {
-            if (!isActive) {
-                activateHomepageBackdrop();
+            // Switched from a library page to home, or not yet active
+            if (!isActive || activeParentId !== null) {
+                clearPluginBackdrop();
+                activateBackdrop(null);
+            }
+        } else if (listParentId) {
+            // Non-standard collection page — activate scoped to this library
+            if (!isActive || activeParentId !== listParentId) {
+                clearPluginBackdrop();
+                activateBackdrop(listParentId);
             }
         } else {
             clearPluginBackdrop();

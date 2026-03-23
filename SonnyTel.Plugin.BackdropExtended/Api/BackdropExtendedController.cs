@@ -4,17 +4,17 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
-namespace SonnyTel.Plugin.HomepageBackdrop.Api;
+namespace SonnyTel.Plugin.BackdropExtended.Api;
 
 /// <summary>
-/// Controller that serves the client-side JavaScript for homepage backdrop cycling.
+/// Controller that serves the client-side JavaScript for the Backdrop Extended plugin.
 /// </summary>
 [ApiController]
-[Route("HomepageBackdrop")]
-public class HomepageBackdropController : ControllerBase
+[Route("BackdropExtended")]
+public class BackdropExtendedController : ControllerBase
 {
     /// <summary>
-    /// Serves the embedded homepage backdrop client script.
+    /// Serves the embedded Backdrop Extended client script.
     /// </summary>
     /// <returns>The JavaScript file content.</returns>
     [HttpGet("ClientScript")]
@@ -24,7 +24,7 @@ public class HomepageBackdropController : ControllerBase
     public ActionResult GetClientScript()
     {
         var assembly = Assembly.GetExecutingAssembly();
-        var resourceName = "SonnyTel.Plugin.HomepageBackdrop.Web.homepageBackdrop.js";
+        var resourceName = "SonnyTel.Plugin.BackdropExtended.Web.backdropExtended.js";
 
         var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream is null)

@@ -1,8 +1,8 @@
 {
   "guid": "3c8f4c97-2bc5-4e68-a60c-4e3b4a24c4b0",
-  "name": "Homepage Backdrop",
-  "description": "Cycles backdrop images on the Jellyfin homepage using items from all media libraries. Respects the standard Backdrops user display setting.",
-  "overview": "Cycles backdrop images on the homepage.",
+  "name": "Backdrop Extended",
+  "description": "Extends Jellyfin's backdrop functionality with additional features, including cycling backdrop images on the homepage using all media sources.",
+  "overview": "Extended backdrop features for Jellyfin.",
   "owner": "sonny-tel",
   "category": "General",
   "version": "1.0.0.0",

@@ -1,6 +1,6 @@
-# Homepage Backdrop
+# Backdrop Extended
 
-A Jellyfin plugin that cycles backdrop images on the homepage, since I could not figure it out.
+A Jellyfin plugin that extends backdrop functionality with additional features.
 
 ## Features
 
@@ -20,7 +20,7 @@ A Jellyfin plugin that cycles backdrop images on the homepage, since I could not
    ```
    https://raw.githubusercontent.com/sonny-tel/jellyfin-homepage-backdrop/main/manifest.json
    ```
-3. Go to **Catalog**, find **Homepage Backdrop** under General, and install it.
+3. Go to **Catalog**, find **Backdrop Extended** under General, and install it.
 4. Restart Jellyfin.
 
 ### Enable Backdrops

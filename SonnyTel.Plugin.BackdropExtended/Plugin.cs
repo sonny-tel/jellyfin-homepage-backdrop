@@ -4,10 +4,10 @@ using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
 using MediaBrowser.Model.Serialization;
 
-namespace SonnyTel.Plugin.HomepageBackdrop;
+namespace SonnyTel.Plugin.BackdropExtended;
 
 /// <summary>
-/// Homepage Backdrop plugin — cycles backdrop images on the homepage from all media sources.
+/// Backdrop Extended plugin — cycles backdrop images on the homepage from all media sources.
 /// </summary>
 public class Plugin : BasePlugin<BasePluginConfiguration>
 {
@@ -28,11 +28,11 @@ public class Plugin : BasePlugin<BasePluginConfiguration>
     public static Plugin? Instance { get; private set; }
 
     /// <inheritdoc />
-    public override string Name => "Homepage Backdrop";
+    public override string Name => "Backdrop Extended";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse("3c8f4c97-2bc5-4e68-a60c-4e3b4a24c4b0");
 
     /// <inheritdoc />
-    public override string Description => "Cycles backdrop images on the homepage using all media sources, respecting the user's Backdrops display setting.";
+    public override string Description => "Extends Jellyfin's backdrop functionality with additional features, including cycling backdrop images on the homepage using all media sources.";
 }
