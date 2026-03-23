@@ -1,5 +1,8 @@
-// Backdrop Extended — cycles backdrops on the homepage and non-standard library pages.
-// Only active when the user's "Backdrops" display setting is enabled.
+// Backdrop Extended — takes over backdrop management from native autoBackdrops.js
+// to provide seamless crossfade transitions across all page types.
+// Native uses the 'selfBackdropPage' class to skip pages; we add this class in the
+// capture phase of 'pageshow' to prevent native from ever clearing or setting backdrops
+// on pages we manage.
 (function () {
     'use strict';
 
@@ -14,45 +17,83 @@
     var isActive = false;
     var activationGeneration = 0;
     var currentLoadingImage = null;
-    var activeParentId = null;
-    var lastBackdropUrl = null;
+    var activeParentId = undefined; // undefined=not set, null=home, string=library
     var pluginContainer = null;
-    var pendingNativeObserver = null;
-    var pendingNativeTimeout = null;
 
-    // --- Helpers ---
+    // --- Settings check (must be defined early for capture handler) ---
+
+    function checkBackdropsEnabled() {
+        var apiClient = window.ApiClient;
+        if (!apiClient) return false;
+        var userId = apiClient.getCurrentUserId();
+        if (!userId) return false;
+        var val = localStorage.getItem(userId + '-enableBackdrops');
+        return val === 'true';
+    }
+
+    // --- Page detection helpers ---
 
     function isHomePage() {
         var hash = window.location.hash;
-        if (hash === '#/home' || hash.indexOf('#/home?') === 0) {
-            return true;
-        }
-        if (hash === '#!/home' || hash.indexOf('#!/home?') === 0) {
-            return true;
-        }
+        if (hash === '#/home' || hash.indexOf('#/home?') === 0) return true;
+        if (hash === '#!/home' || hash.indexOf('#!/home?') === 0) return true;
         return false;
     }
 
     function getListParentId() {
         var hash = window.location.hash;
         var path = hash.replace('#!', '#');
-        if (path.indexOf('#/list?') !== 0 && path.indexOf('#/list&') !== 0) {
-            return null;
-        }
+        if (path.indexOf('#/list?') !== 0 && path.indexOf('#/list&') !== 0) return null;
         var match = path.match(/[?&]parentId=([^&]+)/);
         return match ? match[1] : null;
     }
 
-    function isBackdropPage() {
-        return isHomePage() || getListParentId() !== null;
+    function getTopParentId() {
+        var hash = window.location.hash;
+        var path = hash.replace('#!', '#');
+        // Don't match detail/item pages — those use selfBackdropPage natively
+        if (path.indexOf('#/details') === 0 || path.indexOf('#/item') === 0) return null;
+        var match = hash.match(/[?&]topParentId=([^&]+)/);
+        return match ? match[1] : null;
     }
+
+    // Returns null for home (all items), a parentId string for library pages,
+    // or false if the page is not a backdrop page we manage.
+    function getPageBackdropContext() {
+        if (isHomePage()) return null;
+        var listId = getListParentId();
+        if (listId) return listId;
+        var topId = getTopParentId();
+        if (topId) return topId;
+        return false;
+    }
+
+    // --- Native backdrop suppression ---
+    // autoBackdrops.js registers a bubble-phase 'pageshow' handler via pageClassOn.
+    // It skips pages with 'selfBackdropPage' class. By adding this class in the
+    // CAPTURE phase, we ensure native never touches these pages — no clearBackdrop(),
+    // no showBackdrop(), no innerHTML='', no withBackdrop removal.
+
+    document.addEventListener('pageshow', function (e) {
+        var page = e.target;
+        if (!page || !page.classList) return;
+        if (!page.classList.contains('page')) return;
+        // Don't suppress if user has backdrops disabled or isn't logged in
+        if (!checkBackdropsEnabled()) return;
+        // Don't touch pages that already manage their own backdrop (detail pages etc.)
+        if (page.classList.contains('selfBackdropPage')) return;
+        // Only suppress on pages we'll handle (backdrop pages + non-standard libraries)
+        if (page.classList.contains('backdropPage') || getListParentId()) {
+            page.classList.add('selfBackdropPage');
+        }
+    }, true); // capture phase fires before native's bubble handler
+
+    // --- Utilities ---
 
     function isVideoPlaying() {
         var videos = document.querySelectorAll('video');
         for (var i = 0; i < videos.length; i++) {
-            if (!videos[i].paused) {
-                return true;
-            }
+            if (!videos[i].paused) return true;
         }
         return false;
     }
@@ -66,31 +107,26 @@
             'WebkitAnimation': 'webkitAnimationEnd'
         };
         for (var key in animations) {
-            if (el.style[key] !== undefined) {
-                return animations[key];
-            }
+            if (el.style[key] !== undefined) return animations[key];
         }
         return 'animationend';
     }
 
     var animationEndEvent = whichAnimationEvent();
 
-    // --- Plugin's own backdrop container ---
-    // We render into our own container so native autoBackdrops.js can freely
-    // clear/replace .backdropContainer without affecting our images at all.
-    // Our container sits on top of the native one inside .backgroundContainer.
+    // --- Plugin container ---
+    // Our own container inside .backgroundContainer, rendered on top of native's
+    // .backdropContainer. Native can clear .backdropContainer freely — our images
+    // are in a separate element it doesn't know about.
 
     function getBackgroundContainer() {
         return document.querySelector('.backgroundContainer');
     }
 
     function getPluginContainer() {
-        if (pluginContainer && pluginContainer.parentNode) {
-            return pluginContainer;
-        }
+        if (pluginContainer && pluginContainer.parentNode) return pluginContainer;
         var bg = getBackgroundContainer();
         if (!bg) return null;
-
         pluginContainer = document.createElement('div');
         pluginContainer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;';
         bg.appendChild(pluginContainer);
@@ -107,73 +143,7 @@
         }
     }
 
-    // Guard the withBackdrop class on .backgroundContainer. Native code
-    // removes it when it clears backdrops, but we still need it while our
-    // plugin container has a visible image.
-    function guardBackdropClass() {
-        var bg = getBackgroundContainer();
-        if (!bg) return;
-
-        new MutationObserver(function () {
-            if (lastBackdropUrl && !bg.classList.contains('withBackdrop')) {
-                bg.classList.add('withBackdrop');
-            }
-        }).observe(bg, { attributes: true, attributeFilter: ['class'] });
-    }
-
     // --- Backdrop image management ---
-
-    function cancelNativeWait() {
-        if (pendingNativeObserver) {
-            pendingNativeObserver.disconnect();
-            pendingNativeObserver = null;
-        }
-        if (pendingNativeTimeout) {
-            clearTimeout(pendingNativeTimeout);
-            pendingNativeTimeout = null;
-        }
-    }
-
-    function clearPluginContainer() {
-        lastBackdropUrl = null;
-        if (pluginContainer) {
-            pluginContainer.innerHTML = '';
-        }
-    }
-
-    // When leaving a managed page for a page with native backdrops (e.g. Home→Shows),
-    // keep our image visible as a bridge until the native system renders its own
-    // backdrop. This prevents the gray flash during the handoff.
-    function waitForNativeBackdrop() {
-        cancelNativeWait();
-
-        var nativeContainer = document.querySelector('.backdropContainer');
-        if (!nativeContainer || !pluginContainer || !lastBackdropUrl) {
-            clearPluginContainer();
-            return;
-        }
-
-        // If native already has an image showing, clear immediately
-        if (nativeContainer.querySelector('.displayingBackdropImage')) {
-            clearPluginContainer();
-            return;
-        }
-
-        // Watch for native to add a backdrop image
-        pendingNativeObserver = new MutationObserver(function () {
-            if (nativeContainer.querySelector('.displayingBackdropImage')) {
-                cancelNativeWait();
-                clearPluginContainer();
-            }
-        });
-        pendingNativeObserver.observe(nativeContainer, { childList: true, subtree: true });
-
-        // Safety: if native never loads (page has no backdrop at all), clear after 2s
-        pendingNativeTimeout = setTimeout(function () {
-            cancelNativeWait();
-            clearPluginContainer();
-        }, 2000);
-    }
 
     function deactivateBackdrop() {
         ++activationGeneration;
@@ -181,26 +151,22 @@
         currentImages = [];
         currentIndex = -1;
         isActive = false;
-        activeParentId = null;
+        activeParentId = undefined;
         if (currentLoadingImage) {
             currentLoadingImage.onload = null;
             currentLoadingImage = null;
         }
-        // Keep the visible image as a bridge; wait for native to take over
-        waitForNativeBackdrop();
+        if (pluginContainer) {
+            pluginContainer.innerHTML = '';
+        }
     }
 
     function setBackdropImage(url) {
         var container = getPluginContainer();
-        if (!container) {
-            return;
-        }
+        if (!container) return;
 
         var existing = container.querySelector('.displayingBackdropImage');
-
-        if (existing && existing.getAttribute('data-url') === url) {
-            return;
-        }
+        if (existing && existing.getAttribute('data-url') === url) return;
 
         if (currentLoadingImage) {
             currentLoadingImage.onload = null;
@@ -211,7 +177,6 @@
 
         preload.onload = function () {
             currentLoadingImage = null;
-
             if (!isActive) return;
 
             var backdropImage = document.createElement('div');
@@ -221,7 +186,6 @@
             backdropImage.setAttribute('data-url', url);
             backdropImage.classList.add('backdropImageFadeIn');
             container.appendChild(backdropImage);
-            lastBackdropUrl = url;
 
             setBackgroundEnabled(true);
 
@@ -240,13 +204,9 @@
     }
 
     function onRotationTick() {
-        if (isVideoPlaying() || currentImages.length === 0) {
-            return;
-        }
+        if (isVideoPlaying() || currentImages.length === 0) return;
         var newIndex = currentIndex + 1;
-        if (newIndex >= currentImages.length) {
-            newIndex = 0;
-        }
+        if (newIndex >= currentImages.length) newIndex = 0;
         currentIndex = newIndex;
         setBackdropImage(currentImages[newIndex]);
     }
@@ -269,18 +229,7 @@
         }
     }
 
-    // --- Settings check ---
-
-    function checkBackdropsEnabled() {
-        var apiClient = window.ApiClient;
-        if (!apiClient) return false;
-        var userId = apiClient.getCurrentUserId();
-        if (!userId) return false;
-        var val = localStorage.getItem(userId + '-enableBackdrops');
-        return val === 'true';
-    }
-
-    // --- API interaction ---
+    // --- API ---
 
     function fetchBackdropItems(apiClient, parentId) {
         var userId = apiClient.getCurrentUserId();
@@ -321,28 +270,18 @@
     // --- Main logic ---
 
     function activateBackdrop(parentId) {
-        // Cancel any pending bridge-to-native transition
-        cancelNativeWait();
-
         var apiClient = window.ApiClient;
-        if (!apiClient || !apiClient.getCurrentUserId()) {
-            return;
-        }
+        if (!apiClient || !apiClient.getCurrentUserId()) return;
 
-        if (isActive && activeParentId === (parentId || null)) {
-            return;
-        }
+        if (isActive && activeParentId === parentId) return;
 
-        if (!checkBackdropsEnabled()) {
-            return;
-        }
+        if (!checkBackdropsEnabled()) return;
 
         var generation = ++activationGeneration;
         stopRotation();
 
         fetchBackdropItems(apiClient, parentId).then(function (items) {
             if (generation !== activationGeneration) return;
-
             if (items.length === 0) return;
 
             var urls = buildImageUrls(apiClient, items);
@@ -350,8 +289,8 @@
 
             setTimeout(function () {
                 if (generation !== activationGeneration) return;
-                if (!isBackdropPage()) return;
-                activeParentId = parentId || null;
+                if (getPageBackdropContext() === false) return;
+                activeParentId = parentId;
                 startRotation(urls);
             }, 500);
         }).catch(function (err) {
@@ -362,21 +301,17 @@
     // --- Navigation detection ---
 
     function pollCheck() {
-        var listParentId = getListParentId();
-        if (isHomePage()) {
-            if (!isActive || activeParentId !== null) {
-                activateBackdrop(null);
-            }
-        } else if (listParentId) {
-            if (!isActive || activeParentId !== listParentId) {
-                activateBackdrop(listParentId);
-            }
-        } else if (isActive) {
-            deactivateBackdrop();
+        var context = getPageBackdropContext();
+        if (context === false) {
+            // Not a page we manage — deactivate if active
+            if (isActive) deactivateBackdrop();
+            return;
+        }
+        // context is null (home) or a parentId string (library)
+        if (!isActive || activeParentId !== context) {
+            activateBackdrop(context);
         }
     }
-
-    guardBackdropClass();
 
     setInterval(pollCheck, POLL_INTERVAL_MS);
 
