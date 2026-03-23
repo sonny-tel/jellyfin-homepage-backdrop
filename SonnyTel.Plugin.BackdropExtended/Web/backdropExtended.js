@@ -6,12 +6,13 @@
     var ROTATION_INTERVAL_MS = 10000;
     var FETCH_LIMIT = 20;
     var POLL_INTERVAL_MS = 2000;
+    var MAX_RATING_ENABLED = %BACKDROP_EXTENDED_CONFIG%;
 
     var rotationTimer = null;
     var currentImages = [];
     var currentIndex = -1;
     var isActive = false;
-    var isActivating = false;
+    var activationGeneration = 0;
     var currentLoadingImage = null;
     var activeParentId = null; // tracks which library we're showing backdrops for
 
@@ -94,15 +95,13 @@
         }
     }
 
-    function clearPluginBackdrop() {
-        if (!isActive) {
-            return;
-        }
+    function deactivateBackdrop() {
+        ++activationGeneration;
         stopRotation();
         currentImages = [];
         currentIndex = -1;
         isActive = false;
-        isActivating = false;
+        activeParentId = null;
         if (currentLoadingImage) {
             currentLoadingImage.onload = null;
             currentLoadingImage = null;
@@ -218,7 +217,7 @@
         };
         if (parentId) {
             opts.ParentId = parentId;
-        } else {
+        } else if (MAX_RATING_ENABLED) {
             opts.MaxOfficialRating = 'PG-13';
         }
         return apiClient.getItems(userId, opts).then(function (result) {
@@ -252,49 +251,41 @@
             return;
         }
 
-        if (isActivating) {
-            return;
-        }
-
         // If already active for the same context, skip
         if (isActive && activeParentId === (parentId || null)) {
             return;
         }
 
-        isActivating = true;
-
         if (!checkBackdropsEnabled()) {
-            isActivating = false;
             return;
         }
 
+        // Bump generation to invalidate any in-flight activation
+        var generation = ++activationGeneration;
+
+        // Stop current rotation timer but keep the visible backdrop for crossfade
+        stopRotation();
+
         fetchBackdropItems(apiClient, parentId).then(function (items) {
+            if (generation !== activationGeneration) return;
+
             if (items.length === 0) {
-                isActivating = false;
                 return;
             }
 
             var urls = buildImageUrls(apiClient, items);
             if (urls.length === 0) {
-                isActivating = false;
                 return;
             }
 
-            // Delay to let native backdrop code finish, then replace
+            // Delay to let native backdrop code finish, then crossfade to ours
             setTimeout(function () {
-                isActivating = false;
-                if (!isBackdropPage()) {
-                    return;
-                }
-                var container = getBackdropContainer();
-                if (container) {
-                    container.innerHTML = '';
-                }
+                if (generation !== activationGeneration) return;
+                if (!isBackdropPage()) return;
                 activeParentId = parentId || null;
                 startRotation(urls);
             }, 500);
         }).catch(function (err) {
-            isActivating = false;
             console.error('[BackdropExtended]', err);
         });
     }
@@ -304,19 +295,16 @@
     function pollCheck() {
         var listParentId = getListParentId();
         if (isHomePage()) {
-            // Switched from a library page to home, or not yet active
             if (!isActive || activeParentId !== null) {
-                clearPluginBackdrop();
                 activateBackdrop(null);
             }
         } else if (listParentId) {
-            // Non-standard collection page — activate scoped to this library
             if (!isActive || activeParentId !== listParentId) {
-                clearPluginBackdrop();
                 activateBackdrop(listParentId);
             }
-        } else {
-            clearPluginBackdrop();
+        } else if (isActive) {
+            // Left all backdrop pages — stop and let native code handle cleanup
+            deactivateBackdrop();
         }
     }
 

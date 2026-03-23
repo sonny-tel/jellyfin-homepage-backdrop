@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backdrop Extended</title>
+</head>
+<body>
+    <div id="BackdropExtendedConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+         data-require="emby-checkbox">
+        <div data-role="content">
+            <div class="content-primary">
+                <form id="BackdropExtendedConfigForm">
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input type="checkbox" is="emby-checkbox" id="MaxRatingEnabled" />
+                            <span>Limit homepage backdrops to PG-13</span>
+                        </label>
+                        <div class="fieldDescription">
+                            When enabled, homepage backdrops are restricted to PG-13 rated content or lower
+                            (matching Jellyfin's default behavior). Disable to show backdrops from all content
+                            regardless of rating.
+                        </div>
+                    </div>
+                    <div>
+                        <button is="emby-button" type="submit" class="raised button-submit block emby-button">
+                            <span>Save</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript">
+        var BackdropExtendedConfig = {
+            pluginUniqueId: '3c8f4c97-2bc5-4e68-a60c-4e3b4a24c4b0'
+        };
+
+        document.querySelector('#BackdropExtendedConfigPage')
+            .addEventListener('pageshow', function () {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(BackdropExtendedConfig.pluginUniqueId).then(function (config) {
+                    document.querySelector('#MaxRatingEnabled').checked = config.MaxRatingEnabled;
+                    Dashboard.hideLoadingMsg();
+                });
+            });
+
+        document.querySelector('#BackdropExtendedConfigForm')
+            .addEventListener('submit', function (e) {
+                e.preventDefault();
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(BackdropExtendedConfig.pluginUniqueId).then(function (config) {
+                    config.MaxRatingEnabled = document.querySelector('#MaxRatingEnabled').checked;
+                    ApiClient.updatePluginConfiguration(BackdropExtendedConfig.pluginUniqueId, config).then(function () {
+                        Dashboard.processPluginConfigurationUpdateResult();
+                    });
+                });
+                return false;
+            });
+    </script>
+</body>
+</html>

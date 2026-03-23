@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Plugins;
 using MediaBrowser.Model.Plugins;
@@ -9,7 +10,7 @@ namespace SonnyTel.Plugin.BackdropExtended;
 /// <summary>
 /// Backdrop Extended plugin — cycles backdrop images on the homepage from all media sources.
 /// </summary>
-public class Plugin : BasePlugin<BasePluginConfiguration>
+public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="Plugin"/> class.
@@ -35,4 +36,17 @@ public class Plugin : BasePlugin<BasePluginConfiguration>
 
     /// <inheritdoc />
     public override string Description => "Extends Jellyfin's backdrop functionality with additional features, including cycling backdrop images on the homepage using all media sources.";
+
+    /// <inheritdoc />
+    public IEnumerable<PluginPageInfo> GetPages()
+    {
+        return
+        [
+            new PluginPageInfo
+            {
+                Name = Name,
+                EmbeddedResourcePath = GetType().Namespace + ".Configuration.configPage.html"
+            }
+        ];
+    }
 }

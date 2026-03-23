@@ -37,6 +37,13 @@ public class BackdropExtendedController : ControllerBase
             return NotFound();
         }
 
-        return File(stream, "application/javascript");
+        using var reader = new StreamReader(stream);
+        var js = reader.ReadToEnd();
+
+        var config = Plugin.Instance?.Configuration;
+        var maxRatingEnabled = config?.MaxRatingEnabled ?? true;
+        js = js.Replace("%BACKDROP_EXTENDED_CONFIG%", maxRatingEnabled ? "true" : "false");
+
+        return Content(js, "application/javascript");
     }
 }

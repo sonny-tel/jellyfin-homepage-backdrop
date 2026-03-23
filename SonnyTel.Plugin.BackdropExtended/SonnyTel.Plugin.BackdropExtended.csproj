@@ -23,6 +23,8 @@
   <ItemGroup>
     <None Remove="Web\backdropExtended.js" />
     <EmbeddedResource Include="Web\backdropExtended.js" />
+    <None Remove="Configuration\configPage.html" />
+    <EmbeddedResource Include="Configuration\configPage.html" />
   </ItemGroup>
 
   <ItemGroup>
