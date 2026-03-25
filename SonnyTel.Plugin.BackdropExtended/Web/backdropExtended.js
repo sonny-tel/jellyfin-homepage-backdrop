@@ -181,17 +181,20 @@
             currentLoadingImage = null;
             if (!isActive) return;
 
+            // Re-fetch container in case it was recreated while loading
+            var cont = getPluginContainer();
+            if (!cont) return;
+
             // Snapshot ALL old images now (not in outer closure) so we
             // clean up everything, even if multiple loads overlapped.
-            var oldImages = container.querySelectorAll('.displayingBackdropImage');
+            var oldImages = cont.querySelectorAll('.displayingBackdropImage');
 
             var backdropImage = document.createElement('div');
             backdropImage.classList.add('backdropImage');
             backdropImage.classList.add('displayingBackdropImage');
             backdropImage.style.backgroundImage = "url('" + url + "')";
             backdropImage.setAttribute('data-url', url);
-            backdropImage.classList.add('backdropImageFadeIn');
-            container.appendChild(backdropImage);
+            cont.appendChild(backdropImage);
 
             setBackgroundEnabled(true);
 
@@ -207,9 +210,16 @@
             };
 
             if (oldImages.length > 0) {
+                // Trigger reflow so the new image starts at opacity 0 before
+                // transitioning, giving a smooth crossfade over the old image.
+                void backdropImage.offsetWidth;
+                backdropImage.classList.add('backdropImageFadeIn');
                 backdropImage.addEventListener(animationEndEvent, removeOld, { once: true });
-                // Fallback in case animationend never fires
-                setTimeout(removeOld, 1500);
+                // Fallback in case animationend never fires (animation is 800ms)
+                setTimeout(removeOld, 1000);
+            } else {
+                // First image — just fade in, nothing to clean up.
+                backdropImage.classList.add('backdropImageFadeIn');
             }
         };
 
