@@ -1,0 +1,16 @@
+{
+  "guid": "a5d1e2f3-b4c6-4d7e-8f9a-0b1c2d3e4f5a",
+  "name": "Music Player Fixes",
+  "description": "Fixes and improvements for the Jellyfin music player.",
+  "overview": "Music player fixes for Jellyfin.",
+  "owner": "sonny-tel",
+  "category": "General",
+  "version": "1.0.0.0",
+  "changelog": "1.0.0.0 - Initial release",
+  "targetAbi": "10.11.0.0",
+  "timestamp": "2026-03-25T00:00:00Z",
+  "status": 0,
+  "autoUpdate": true,
+  "imagePath": "",
+  "assemblies": ["SonnyTel.Plugin.MusicPlayerFixes.dll"]
+}
