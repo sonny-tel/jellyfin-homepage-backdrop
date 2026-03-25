@@ -170,14 +170,20 @@
 
         if (currentLoadingImage) {
             currentLoadingImage.onload = null;
+            currentLoadingImage = null;
         }
 
         var preload = new Image();
         currentLoadingImage = preload;
 
         preload.onload = function () {
+            if (currentLoadingImage !== preload) return; // superseded by a newer load
             currentLoadingImage = null;
             if (!isActive) return;
+
+            // Snapshot ALL old images now (not in outer closure) so we
+            // clean up everything, even if multiple loads overlapped.
+            var oldImages = container.querySelectorAll('.displayingBackdropImage');
 
             var backdropImage = document.createElement('div');
             backdropImage.classList.add('backdropImage');
@@ -189,14 +195,21 @@
 
             setBackgroundEnabled(true);
 
-            if (existing) {
-                var onAnimEnd = function () {
-                    backdropImage.removeEventListener(animationEndEvent, onAnimEnd);
-                    if (existing.parentNode) {
-                        existing.parentNode.removeChild(existing);
+            var cleanedUp = false;
+            var removeOld = function () {
+                if (cleanedUp) return;
+                cleanedUp = true;
+                for (var i = 0; i < oldImages.length; i++) {
+                    if (oldImages[i].parentNode) {
+                        oldImages[i].parentNode.removeChild(oldImages[i]);
                     }
-                };
-                backdropImage.addEventListener(animationEndEvent, onAnimEnd, { once: true });
+                }
+            };
+
+            if (oldImages.length > 0) {
+                backdropImage.addEventListener(animationEndEvent, removeOld, { once: true });
+                // Fallback in case animationend never fires
+                setTimeout(removeOld, 1500);
             }
         };
 

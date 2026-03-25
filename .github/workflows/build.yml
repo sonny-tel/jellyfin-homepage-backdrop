@@ -34,10 +34,3 @@ jobs:
             exit 1
           fi
           echo "BackdropExtended embedded resources verified."
-
-          music_dll="SonnyTel.Plugin.MusicPlayerFixes/bin/Release/net9.0/SonnyTel.Plugin.MusicPlayerFixes.dll"
-          if ! strings "$music_dll" | grep -q "musicPlayerFixes.js"; then
-            echo "::error::musicPlayerFixes.js not embedded in MusicPlayerFixes DLL"
-            exit 1
-          fi
-          echo "MusicPlayerFixes embedded resources verified."

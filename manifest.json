@@ -145,40 +145,5 @@
         "timestamp": "2026-03-23T11:31:25Z"
       }
     ]
-  },
-  {
-    "guid": "a5d1e2f3-b4c6-4d7e-8f9a-0b1c2d3e4f5a",
-    "name": "Music Player Fixes",
-    "description": "Fixes and improvements for the Jellyfin music player.",
-    "overview": "Music player fixes for Jellyfin.",
-    "owner": "sonny-tel",
-    "category": "General",
-    "imageUrl": "",
-    "versions": [
-      {
-        "version": "1.0.2.3",
-        "changelog": "See release notes",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/sonny-tel/jellyfin-plugins/releases/download/v1.0.2.3/music-player-fixes_1.0.2.3.zip",
-        "checksum": "9bb39aa6b5519c79e86099e9a8c0215a",
-        "timestamp": "2026-03-25T12:37:18Z"
-      },
-      {
-        "version": "1.0.2.2",
-        "changelog": "See release notes",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/sonny-tel/jellyfin-plugins/releases/download/v1.0.2.2/music-player-fixes_1.0.2.2.zip",
-        "checksum": "e3b0fbd23f434850144af4259bf7a207",
-        "timestamp": "2026-03-25T12:20:05Z"
-      },
-      {
-        "version": "1.0.2.1",
-        "changelog": "See release notes",
-        "targetAbi": "10.11.0.0",
-        "sourceUrl": "https://github.com/sonny-tel/jellyfin-plugins/releases/download/v1.0.2.1/music-player-fixes_1.0.2.1.zip",
-        "checksum": "1b363d49dc91a53fc51afdc42a61fea3",
-        "timestamp": "2026-03-25T12:11:47Z"
-      }
-    ]
   }
 ]

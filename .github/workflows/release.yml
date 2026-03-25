@@ -67,30 +67,11 @@ jobs:
           echo "md5=${MD5}" >> "$GITHUB_OUTPUT"
           echo "Packaged: ${ARTIFACT_NAME} (${MD5})"
 
-      # ── Music Player Fixes ──
-      - name: Package Music Player Fixes
-        id: pkg_music
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          ARTIFACT_NAME="music-player-fixes_${VERSION}.zip"
-          OUT_DIR="SonnyTel.Plugin.MusicPlayerFixes/bin/Release/net9.0"
-
-          zip -j "${ARTIFACT_NAME}" \
-            "${OUT_DIR}/SonnyTel.Plugin.MusicPlayerFixes.dll" \
-            "${OUT_DIR}/meta.json"
-
-          MD5=$(md5sum "$ARTIFACT_NAME" | awk '{print $1}')
-
-          echo "artifact=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
-          echo "md5=${MD5}" >> "$GITHUB_OUTPUT"
-          echo "Packaged: ${ARTIFACT_NAME} (${MD5})"
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             ${{ steps.pkg_backdrop.outputs.artifact }}
-            ${{ steps.pkg_music.outputs.artifact }}
           generate_release_notes: true
 
       - name: Update manifest.json
@@ -102,9 +83,6 @@ jobs:
           BACKDROP_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${TAG}/${{ steps.pkg_backdrop.outputs.artifact }}"
           BACKDROP_MD5="${{ steps.pkg_backdrop.outputs.md5 }}"
 
-          MUSIC_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/v${TAG}/${{ steps.pkg_music.outputs.artifact }}"
-          MUSIC_MD5="${{ steps.pkg_music.outputs.md5 }}"
-
           # Update Backdrop Extended (guid: 3c8f4c97-...)
           jq --arg v "$VERSION" \
              --arg cl "See release notes" \
@@ -113,29 +91,6 @@ jobs:
              --arg cs "$BACKDROP_MD5" \
              --arg ts "$TIMESTAMP" \
              --arg guid "3c8f4c97-2bc5-4e68-a60c-4e3b4a24c4b0" \
-            'map(if .guid == $guid then
-              .versions = [
-                {
-                  "version": $v,
-                  "changelog": $cl,
-                  "targetAbi": $abi,
-                  "sourceUrl": $url,
-                  "checksum": $cs,
-                  "timestamp": $ts
-                }
-              ] + [.versions[]? | select(.version != $v)]
-            else . end)' \
-            manifest.json > manifest_tmp.json
-          mv manifest_tmp.json manifest.json
-
-          # Update Music Player Fixes (guid: a5d1e2f3-...)
-          jq --arg v "$VERSION" \
-             --arg cl "See release notes" \
-             --arg abi "10.11.0.0" \
-             --arg url "$MUSIC_URL" \
-             --arg cs "$MUSIC_MD5" \
-             --arg ts "$TIMESTAMP" \
-             --arg guid "a5d1e2f3-b4c6-4d7e-8f9a-0b1c2d3e4f5a" \
             'map(if .guid == $guid then
               .versions = [
                 {
