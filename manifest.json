@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "1.0.2.3",
+        "changelog": "See release notes",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/sonny-tel/jellyfin-plugins/releases/download/v1.0.2.3/backdrop-extended_1.0.2.3.zip",
+        "checksum": "5ecfb3814a60b29a7631b90f7b807daa",
+        "timestamp": "2026-03-25T12:37:18Z"
+      },
+      {
         "version": "1.0.2.2",
         "changelog": "See release notes",
         "targetAbi": "10.11.0.0",
@@ -147,6 +155,14 @@
     "category": "General",
     "imageUrl": "",
     "versions": [
+      {
+        "version": "1.0.2.3",
+        "changelog": "See release notes",
+        "targetAbi": "10.11.0.0",
+        "sourceUrl": "https://github.com/sonny-tel/jellyfin-plugins/releases/download/v1.0.2.3/music-player-fixes_1.0.2.3.zip",
+        "checksum": "9bb39aa6b5519c79e86099e9a8c0215a",
+        "timestamp": "2026-03-25T12:37:18Z"
+      },
       {
         "version": "1.0.2.2",
         "changelog": "See release notes",
