@@ -1,112 +1,73 @@
-// Music Player Fixes — patches playbackManager.previousTrack so that
-// keyboard shortcuts and Media Session API match the skip-back button
-// behaviour: restart the current track first when position >= 5 s,
-// then go to the previous track only on a second press (or when < 5 s
-// into the song).
+// Music Player Fixes — makes keyboard / Media Session "previous track"
+// match the skip-back button behaviour: restart the current track when
+// position >= 5 s, go to previous track only when < 5 s in.
+//
+// Strategy: intercept at two layers we *can* reach from an injected
+// script (playbackManager is an ES module and not globally accessible):
+//   1. Capture-phase keydown for MediaTrackPrevious — fires before
+//      Jellyfin's keyboardNavigation handler.
+//   2. Wrap navigator.mediaSession.setActionHandler so the OS-level
+//      "previous track" control also gets the restart logic.
+// Seeking is done directly on the DOM <audio> element.
 (function () {
     'use strict';
 
-    var RESTART_THRESHOLD_MS = 5000;
+    var RESTART_THRESHOLD_S = 5;
 
-    // Wait for the playbackManager singleton to be available on the
-    // global `window` scope. Jellyfin attaches it early in the boot
-    // process; poll briefly to catch it.
-    var attempts = 0;
-    var maxAttempts = 50;
-
-    function getPlaybackManager() {
-        // eslint-disable-next-line compat/compat
-        try {
-            // The playback manager attaches as a named export but is
-            // also reachable through the global Events bus indirectly.
-            // The most reliable way from an injected script is the
-            // `require` shim Jellyfin exposes.
-            if (window.require) {
-                var mod = window.require('components/playback/playbackmanager');
-                if (mod && mod.playbackManager) {
-                    return mod.playbackManager;
-                }
-            }
-        } catch (_) {
-            // ignore
+    /** Find the currently-playing <audio> element Jellyfin creates. */
+    function getActiveAudio() {
+        var audios = document.querySelectorAll('audio');
+        for (var i = 0; i < audios.length; i++) {
+            if (!audios[i].paused) return audios[i];
         }
         return null;
     }
 
-    function patchPreviousTrack(pbm) {
-        var _originalPreviousTrack = pbm.previousTrack.bind(pbm);
+    /**
+     * If audio is playing and position >= threshold, seek to 0.
+     * Returns true if we handled it (caller should suppress default).
+     */
+    function tryRestart() {
+        var audio = getActiveAudio();
+        if (!audio) return false;
 
-        pbm.previousTrack = function (player) {
-            player = player || pbm._currentPlayer || pbm.getCurrentPlayer();
-            if (!player) {
-                return;
+        if (audio.currentTime >= RESTART_THRESHOLD_S) {
+            var pos = audio.currentTime;
+            audio.currentTime = 0;
+            console.debug('[MusicPlayerFixes] Restarted track (was at ' + Math.round(pos) + 's)');
+            return true;
+        }
+        return false;
+    }
+
+    // --- 1. Keyboard interception (capture phase) -------------------
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'MediaTrackPrevious') {
+            if (tryRestart()) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
             }
+        }
+    }, true);
 
-            // Only apply the restart-first logic for audio playback.
-            var isAudio = false;
-            try {
-                isAudio = pbm.isPlayingAudio
-                    ? pbm.isPlayingAudio(player)
-                    : pbm.isPlayingMediaType('Audio', player);
-            } catch (_) {
-                // fall through – treat as non-audio
-            }
+    // --- 2. Media Session wrapper -----------------------------------
+    if (navigator.mediaSession) {
+        var _origSetAction = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
+        var _prevTrackHandler = null;
 
-            if (isAudio) {
-                var positionMs = 0;
-                try {
-                    positionMs = pbm.currentTime(player);
-                } catch (_) {
-                    // fall through
-                }
-
-                var isFirstTrack = false;
-                try {
-                    isFirstTrack = pbm.getCurrentPlaylistIndex(player) <= 0;
-                } catch (_) {
-                    // fall through
-                }
-
-                // If we are past the threshold, or there is no previous
-                // track to go to, restart the current track instead.
-                if (positionMs >= RESTART_THRESHOLD_MS || isFirstTrack) {
-                    try {
-                        pbm.seekPercent(0, player);
-                    } catch (_) {
-                        try { pbm.seek(0, player); } catch (_2) { /* ignore */ }
+        navigator.mediaSession.setActionHandler = function (action, handler) {
+            if (action === 'previoustrack') {
+                _prevTrackHandler = handler;
+                _origSetAction(action, function () {
+                    if (!tryRestart() && _prevTrackHandler) {
+                        _prevTrackHandler();
                     }
-                    console.debug('[MusicPlayerFixes] Restarted current track (position was ' + Math.round(positionMs / 1000) + 's)');
-                    return;
-                }
+                });
+            } else {
+                _origSetAction(action, handler);
             }
-
-            // For video, or audio with position < threshold and not
-            // first track, fall through to the original behaviour.
-            return _originalPreviousTrack(player);
         };
-
-        console.info('[MusicPlayerFixes] Patched playbackManager.previousTrack');
     }
 
-    function tryPatch() {
-        var pbm = getPlaybackManager();
-        if (pbm) {
-            patchPreviousTrack(pbm);
-            return;
-        }
-
-        attempts++;
-        if (attempts < maxAttempts) {
-            setTimeout(tryPatch, 200);
-        } else {
-            console.warn('[MusicPlayerFixes] Could not find playbackManager after ' + maxAttempts + ' attempts');
-        }
-    }
-
-    // Start polling once the DOM is ready.
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', tryPatch);
-    } else {
-        tryPatch();
-    }
+    console.info('[MusicPlayerFixes] Loaded');
 })();
